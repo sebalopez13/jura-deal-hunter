@@ -18,7 +18,7 @@ PRODUCT_NAME   = "JURA ENA 4 Fully Automatic Espresso Machine Nordic White"
 BASELINE_PRICE = 1199.95
 BASELINE_STORE = "Williams-Sonoma"
 ALERT_THRESHOLD_PCT = 5
-RECIPIENT_EMAIL = "sebalopez13@gmail.com"
+RECIPIENT_EMAIL = "sebalopez13@gmail.com, romangancberg@gmail.com"
 
 RETAILERS = [
     "Amazon", "Williams-Sonoma", "Best Buy",
