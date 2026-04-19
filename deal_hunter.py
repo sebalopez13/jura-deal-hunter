@@ -29,7 +29,7 @@ def search_for_deals():
     retailer_list = "\n".join(f"- {r}" for r in RETAILERS)
     prompt = f"""Search for the current price of the {PRODUCT_NAME} at each of these retailers:\n\n{retailer_list}\n\nReturn a JSON array only. Each element must have:\n- "retailer": string\n- "price": number or null\n- "url": string or null\n- "in_stock": boolean\n- "notes": string"""
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5",
         max_tokens=2000,
         tools=[{"type": "web_search_20250305", "name": "web_search"}],
         messages=[{"role": "user", "content": prompt}],
