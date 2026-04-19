@@ -4,6 +4,7 @@ Searches for the best price across retailers and sends a Gmail alert when a deal
 """
 
 import os
+import re
 import json
 import base64
 import anthropic
@@ -27,19 +28,35 @@ RETAILERS = [
 def search_for_deals():
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     retailer_list = "\n".join(f"- {r}" for r in RETAILERS)
-    prompt = f"""Search for the current price of the {PRODUCT_NAME} at each of these retailers:\n\n{retailer_list}\n\nReturn a JSON array only. Each element must have:\n- "retailer": string\n- "price": number or null\n- "url": string or null\n- "in_stock": boolean\n- "notes": string"""
+    prompt = f"""Search for the current price of the {PRODUCT_NAME} at each of these retailers:
+
+{retailer_list}
+
+Return ONLY a valid JSON array, no markdown, no explanation, no code fences. Each element must have:
+- "retailer": string
+- "price": number or null
+- "url": string or null
+- "in_stock": boolean
+- "notes": string
+
+Example:
+[{{"retailer": "Amazon", "price": 1149.00, "url": "https://amazon.com/...", "in_stock": true, "notes": "Free shipping"}}]"""
+
     response = client.messages.create(
         model="claude-sonnet-4-5",
         max_tokens=2000,
         tools=[{"type": "web_search_20250305", "name": "web_search"}],
         messages=[{"role": "user", "content": prompt}],
     )
-    raw = "".join(b.text for b in response.content if b.type == "text").strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    return json.loads(raw.strip().rstrip("```").strip())
+
+    raw = "".join(b.text for b in response.content if hasattr(b, 'text')).strip()
+    print(f"Raw response: {raw[:500]}")
+
+    # Extract JSON array from response
+    match = re.search(r'\[.*\]', raw, re.DOTALL)
+    if match:
+        return json.loads(match.group())
+    raise ValueError(f"No JSON array found in response: {raw[:300]}")
 
 def find_best_deal(results):
     available = [r for r in results if r.get("price") and r.get("in_stock", True)]
@@ -76,7 +93,25 @@ def send_deal_alert(deal, all_results):
             price_lines.append(f"  {r['retailer']:<22} ${r['price']:>8.2f}{marker}")
         else:
             price_lines.append(f"  {r['retailer']:<22} {'Not listed':>9}")
-    body = f"""Your daily deal hunter found a price drop!\n\nJURA ENA 4 - Nordic White\n\n  Best price today:  ${deal['price']:.2f} at {deal['retailer']}\n  Baseline price:    ${BASELINE_PRICE:.2f} at {BASELINE_STORE}\n  You save:          ${deal['savings']:.2f} ({deal['savings_pct']}% off)\n\n  Buy now: {deal.get('url', 'See retailer website')}\n\nAll prices ({today}):\n\n""" + "\n".join(price_lines) + f"\n\nPrices change fast - act now!\n\nSent by your automated JURA ENA 4 Deal Hunter (threshold: {ALERT_THRESHOLD_PCT}% off)"
+
+    body = f"""Your daily deal hunter found a price drop!
+
+JURA ENA 4 - Nordic White
+
+  Best price today:  ${deal['price']:.2f} at {deal['retailer']}
+  Baseline price:    ${BASELINE_PRICE:.2f} at {BASELINE_STORE}
+  You save:          ${deal['savings']:.2f} ({deal['savings_pct']}% off)
+
+  Buy now: {deal.get('url', 'See retailer website')}
+
+All prices ({today}):
+
+""" + "\n".join(price_lines) + f"""
+
+Prices change fast - act now!
+
+Sent by your automated JURA ENA 4 Deal Hunter (threshold: {ALERT_THRESHOLD_PCT}% off)"""
+
     subject = f"Deal alert: JURA ENA 4 - ${deal['price']:.2f} at {deal['retailer']} (save ${deal['savings']:.2f})"
     msg = MIMEText(body)
     msg["to"] = RECIPIENT_EMAIL
@@ -88,6 +123,7 @@ def send_deal_alert(deal, all_results):
 def main():
     print(f"[{datetime.now().isoformat()}] Starting deal hunt for: {PRODUCT_NAME}")
     results = search_for_deals()
+    print(f"[{datetime.now().isoformat()}] Found {len(results)} results")
     for r in results:
         print(f"  {r['retailer']}: {'$'+str(r['price']) if r.get('price') else 'N/A'} — {r.get('notes','')}")
     deal = find_best_deal(results)
@@ -95,7 +131,7 @@ def main():
         print(f"Deal found! ${deal['price']} at {deal['retailer']} ({deal['savings_pct']}% off)")
         send_deal_alert(deal, results)
     else:
-        print(f"No deals meet the {ALERT_THRESHOLD_PCT}% threshold today.")
+        print(f"No deals meet the {ALERT_THRESHOLD_PCT}% threshold today. No email sent.")
 
 if __name__ == "__main__":
     main()
