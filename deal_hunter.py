@@ -22,7 +22,12 @@ RECIPIENT_EMAIL = "sebalopez13@gmail.com, romangancberg@gmail.com"
 
 RETAILERS = [
     "Amazon", "Williams-Sonoma", "Best Buy",
-    "Whole Latte Love", "Costco", "shopjura.com", "Target",
+    "Whole Latte Love new", "Whole Latte Love open box",
+    "Costco", "shopjura.com", "Target", "Walmart",
+    "Crate and Barrel", "Seattle Coffee Gear",
+    "1st in Coffee", "eBay new listings",
+    "eBay open box listings", "eBay refurbished listings",
+    "Google Shopping",
 ]
 
 def search_for_deals():
